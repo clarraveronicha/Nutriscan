@@ -1,0 +1,1200 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NutriScan - AI Food & Voice Assistant</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #F3F4F6;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        /* Hide Scrollbar */
+        ::-webkit-scrollbar { width: 0px; background: transparent; }
+
+        /* Scanner Animation */
+        .scan-line {
+            width: 100%; height: 3px; background: #10B981;
+            position: absolute; top: 0; left: 0;
+            box-shadow: 0 0 15px #10B981;
+            animation: scan 2s infinite linear; display: none;
+        }
+        @keyframes scan {
+            0% { top: 0%; opacity: 0; }
+            10% { opacity: 1; }
+            90% { opacity: 1; }
+            100% { top: 100%; opacity: 0; }
+        }
+
+        /* Animations */
+        .fade-in { animation: fadeIn 0.4s ease-out forwards; }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .slide-up { animation: slideUp 0.3s ease-out forwards; }
+        @keyframes slideUp {
+            from { transform: translateY(100%); }
+            to { transform: translateY(0); }
+        }
+
+        .pulse-ring {
+            animation: pulse-ring 2s cubic-bezier(0.215, 0.61, 0.355, 1) infinite;
+        }
+        @keyframes pulse-ring {
+            0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
+            70% { transform: scale(1); box-shadow: 0 0 0 15px rgba(16, 185, 129, 0); }
+            100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+        }
+
+        /* Speaking Wave Animation */
+        .voice-wave span {
+            display: inline-block; width: 4px; height: 10px;
+            background-color: #10B981; margin: 0 2px; border-radius: 2px;
+            animation: wave 1s infinite ease-in-out;
+        }
+        .voice-wave span:nth-child(2) { animation-delay: 0.1s; }
+        .voice-wave span:nth-child(3) { animation-delay: 0.2s; }
+        .voice-wave span:nth-child(4) { animation-delay: 0.3s; }
+        .voice-wave span:nth-child(5) { animation-delay: 0.4s; }
+        @keyframes wave {
+            0%, 100% { height: 10px; }
+            50% { height: 25px; }
+        }
+
+        /* Form Styling */
+        .input-group label {
+            display: block; font-size: 0.75rem; font-weight: 600; color: #6B7280; margin-bottom: 0.25rem;
+        }
+        .input-group input, .input-group select {
+            width: 100%; padding: 0.75rem; border-radius: 0.75rem; border: 1px solid #E5E7EB; background: #F9FAFB;
+            transition: all 0.2s;
+        }
+        .input-group input:focus, .input-group select:focus {
+            border-color: #10B981; outline: none; background: white; box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1);
+        }
+        
+        /* Checkbox Custom Styling */
+        .checkbox-label {
+            display: flex; align-items: center; gap: 8px; padding: 8px;
+            background: #F9FAFB; border: 1px solid #E5E7EB; border-radius: 8px; cursor: pointer; transition: all 0.2s;
+        }
+        .checkbox-label:hover { border-color: #10B981; }
+        .checkbox-label input:checked + span { color: #10B981; font-weight: 600; }
+        .checkbox-label input { accent-color: #10B981; width: 16px; height: 16px; }
+    </style>
+</head>
+<body class="text-gray-800 min-h-screen flex items-center justify-center p-0 sm:p-4 bg-gray-100">
+
+    <!-- App Container -->
+    <div class="w-full h-screen sm:h-[800px] sm:max-w-md bg-white sm:rounded-3xl shadow-2xl overflow-hidden relative flex flex-col">
+        
+        <!-- Header -->
+        <header class="p-6 bg-white z-20 flex justify-between items-center border-b border-gray-100">
+            <div>
+                <h1 class="text-xl font-bold text-gray-900 tracking-tight flex items-center gap-2">
+                    NutriScan<span class="text-emerald-500">.</span>
+                </h1>
+            </div>
+            <!-- Monika Voice Trigger -->
+            <button onclick="toggleMonika()" class="group flex items-center gap-2 bg-emerald-50 px-3 py-1.5 rounded-full hover:bg-emerald-100 transition-colors cursor-pointer active:scale-95">
+                <span class="text-xs font-semibold text-emerald-700">Monika AI</span>
+                <div class="w-2 h-2 rounded-full bg-emerald-500 group-hover:animate-ping"></div>
+            </button>
+        </header>
+
+        <!-- Dynamic Content Area -->
+        <main id="main-content" class="flex-1 overflow-y-auto relative pb-24">
+            
+            <!-- VIEW 1: SCANNER HOME -->
+            <section id="view-scan" class="p-6 h-full flex flex-col">
+                <!-- Welcome Section -->
+                <div id="welcome-msg" class="mb-6 fade-in">
+                    <h2 class="text-2xl font-bold text-gray-800">Halo, <span id="user-greeting">Sobat Sehat</span>! 👋</h2>
+                    <p class="text-gray-500 text-sm mt-1">Apa yang kamu makan atau minum hari ini?</p>
+                </div>
+
+                <!-- Upload Area -->
+                <div id="upload-state" class="flex-1 flex flex-col justify-center transition-all duration-300">
+                    <div class="relative group cursor-pointer w-full" onclick="document.getElementById('file-input').click()">
+                        <div class="border-2 border-dashed border-gray-300 rounded-3xl p-8 transition-all group-hover:border-emerald-400 group-hover:bg-emerald-50 flex flex-col items-center justify-center h-72 shadow-sm">
+                            <div class="w-20 h-20 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mb-6 text-3xl group-hover:scale-110 transition-transform shadow-inner">
+                                <i class="fa-solid fa-camera"></i>
+                            </div>
+                            <h3 class="font-bold text-gray-700 text-lg">Foto Makanan/Minuman</h3>
+                            <p class="text-sm text-gray-400 mt-2 text-center">Gunakan kamera atau galeri<br>untuk analisis instan.</p>
+                        </div>
+                        <input type="file" id="file-input" class="hidden" accept="image/*" onchange="handleImageUpload(event)">
+                    </div>
+                </div>
+
+                <!-- Analysis State (Hidden) -->
+                <div id="analysis-state" class="hidden flex-col h-full fade-in pb-10">
+                    <div class="relative w-full h-56 rounded-2xl overflow-hidden shadow-lg mb-6 bg-gray-900 group">
+                        <img id="preview-image" src="" alt="Food Preview" class="w-full h-full object-cover opacity-90">
+                        <!-- Scanner Overlay -->
+                        <div id="scanner-overlay" class="absolute inset-0 bg-black/50 z-10 hidden flex flex-col items-center justify-center backdrop-blur-[2px]">
+                            <div class="scan-line"></div>
+                            <div class="bg-white/90 backdrop-blur-md px-6 py-4 rounded-2xl flex flex-col items-center gap-3 shadow-2xl">
+                                <i class="fa-solid fa-circle-notch fa-spin text-emerald-500 text-2xl"></i>
+                                <span id="scan-status-text" class="text-sm font-semibold text-gray-800">Menganalisis gambar...</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Result Card -->
+                    <div id="result-card" class="hidden">
+                        <div class="bg-white rounded-2xl p-1 mb-4">
+                            <div class="flex justify-between items-start mb-2">
+                                <div>
+                                    <!-- Category Badge -->
+                                    <div id="category-badge-container" class="mb-2">
+                                        <span id="food-category" class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-gray-100 text-gray-600">
+                                            <i class="fa-solid fa-circle-question"></i> Makanan
+                                        </span>
+                                    </div>
+                                    
+                                    <div class="flex items-center gap-2">
+                                        <!-- Emoji hidden if photo is scanned, logic in JS -->
+                                        <span id="food-emoji" class="text-3xl hidden">🍽️</span>
+                                        <h2 id="food-name" class="text-2xl font-bold text-gray-900 leading-tight">Nama Item</h2>
+                                    </div>
+                                    
+                                    <!-- Edit Button -->
+                                    <button onclick="showManualInput()" class="mt-2 text-[10px] text-emerald-600 font-bold bg-emerald-50 px-2 py-1.5 rounded-lg hover:bg-emerald-100 transition-colors flex items-center gap-1.5 w-max">
+                                        <i class="fa-solid fa-pen"></i> Koreksi Hasil
+                                    </button>
+                                </div>
+                                <div class="text-right bg-emerald-50 px-4 py-3 rounded-xl border border-emerald-100">
+                                    <span id="food-calories" class="block text-3xl font-bold text-emerald-600">0</span>
+                                    <span class="text-[10px] uppercase font-bold text-emerald-400 tracking-wider">kkal</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Macros -->
+                        <div class="grid grid-cols-3 gap-3 mb-6">
+                            <div class="bg-orange-50 p-3 rounded-2xl border border-orange-100">
+                                <div class="text-[10px] text-orange-500 font-bold uppercase mb-1">Karbo</div>
+                                <div id="food-carbs" class="text-lg font-bold text-gray-800">0g</div>
+                                <div class="w-full bg-orange-200 h-1.5 rounded-full mt-2"><div id="bar-carbs" class="bg-orange-500 h-1.5 rounded-full transition-all duration-1000" style="width:0%"></div></div>
+                            </div>
+                            <div class="bg-blue-50 p-3 rounded-2xl border border-blue-100">
+                                <div class="text-[10px] text-blue-500 font-bold uppercase mb-1">Protein</div>
+                                <div id="food-protein" class="text-lg font-bold text-gray-800">0g</div>
+                                <div class="w-full bg-blue-200 h-1.5 rounded-full mt-2"><div id="bar-protein" class="bg-blue-500 h-1.5 rounded-full transition-all duration-1000" style="width:0%"></div></div>
+                            </div>
+                            <div class="bg-yellow-50 p-3 rounded-2xl border border-yellow-100">
+                                <div class="text-[10px] text-yellow-600 font-bold uppercase mb-1">Lemak</div>
+                                <div id="food-fat" class="text-lg font-bold text-gray-800">0g</div>
+                                <div class="w-full bg-yellow-200 h-1.5 rounded-full mt-2"><div id="bar-fat" class="bg-yellow-500 h-1.5 rounded-full transition-all duration-1000" style="width:0%"></div></div>
+                            </div>
+                        </div>
+
+                        <!-- Monika's Insight Bubble -->
+                        <div class="bg-gradient-to-br from-emerald-500 to-teal-600 rounded-2xl p-4 text-white relative shadow-lg cursor-pointer hover:shadow-xl transition-shadow" onclick="playAudioTip()">
+                            <div class="flex items-start gap-3">
+                                <div class="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center shrink-0">
+                                    <i class="fa-solid fa-microphone-lines text-white"></i>
+                                </div>
+                                <div>
+                                    <h4 class="text-xs font-bold text-emerald-100 uppercase tracking-wide mb-1">Saran Monika</h4>
+                                    <p id="food-tip" class="text-sm font-medium leading-relaxed opacity-95">...</p>
+                                </div>
+                            </div>
+                            <div class="absolute top-4 right-4 text-white/50 text-xs">
+                                <i class="fa-solid fa-volume-high"></i>
+                            </div>
+                        </div>
+
+                        <!-- Action Buttons -->
+                        <div class="mt-6 flex gap-3">
+                            <button onclick="saveAndReset()" class="flex-1 bg-gray-900 text-white py-3.5 rounded-xl font-semibold shadow-lg active:scale-95 transition-transform">
+                                <i class="fa-solid fa-check mr-2"></i> Simpan
+                            </button>
+                            <button onclick="resetApp()" class="px-4 py-3.5 rounded-xl border border-gray-200 text-gray-600 font-semibold active:bg-gray-50">
+                                <i class="fa-solid fa-xmark"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- VIEW 2: ACTIVITIES -->
+            <section id="view-activity" class="hidden p-6 h-full flex-col space-y-6 fade-in">
+                <div class="bg-white rounded-3xl p-6 shadow-lg border border-gray-100">
+                    <div class="flex items-center gap-3 mb-4">
+                        <div class="w-10 h-10 rounded-full bg-orange-100 flex items-center justify-center text-orange-500">
+                            <i class="fa-solid fa-fire-flame-curved"></i>
+                        </div>
+                        <h3 class="text-lg font-bold text-gray-800">Catat Aktivitas</h3>
+                    </div>
+
+                    <form onsubmit="saveActivity(event)" class="space-y-4">
+                        <div class="input-group">
+                            <label>Jenis Aktivitas</label>
+                            <select id="activity-type" class="w-full" onchange="calculateBurnEstimate()">
+                                <option value="running" data-met="9.8">Lari (Running)</option>
+                                <option value="walking" data-met="3.8">Jalan Santai (Walking)</option>
+                                <option value="cycling" data-met="7.5">Bersepeda (Cycling)</option>
+                                <option value="swimming" data-met="8.0">Berenang (Swimming)</option>
+                                <option value="gym" data-met="5.0">Gym / Angkat Beban</option>
+                                <option value="yoga" data-met="2.5">Yoga / Peregangan</option>
+                                <option value="cleaning" data-met="3.0">Membersihkan Rumah</option>
+                            </select>
+                        </div>
+
+                        <div class="input-group">
+                            <label>Durasi (Menit)</label>
+                            <input type="number" id="activity-duration" placeholder="30" min="1" max="300" value="30" oninput="calculateBurnEstimate()" required>
+                        </div>
+
+                        <div class="bg-gray-50 p-4 rounded-xl flex justify-between items-center border border-gray-100">
+                            <span class="text-xs text-gray-500 font-semibold uppercase">Estimasi Bakar</span>
+                            <div>
+                                <span id="activity-burn-est" class="text-2xl font-bold text-orange-500">0</span>
+                                <span class="text-xs text-gray-400">kkal</span>
+                            </div>
+                        </div>
+
+                        <button type="submit" class="w-full bg-orange-500 text-white py-3.5 rounded-xl font-bold shadow-lg shadow-orange-200 active:scale-95 transition-transform flex items-center justify-center gap-2">
+                            <i class="fa-solid fa-plus"></i> Tambah Aktivitas
+                        </button>
+                    </form>
+                </div>
+
+                <!-- Today's Activity List -->
+                <div>
+                    <h4 class="text-sm font-bold text-gray-600 mb-3 ml-1">Aktivitas Hari Ini</h4>
+                    <div id="activity-list" class="space-y-3 pb-10">
+                        <div class="text-center py-8 text-gray-400 text-sm italic" id="empty-activity-msg">
+                            Belum ada aktivitas tercatat hari ini.
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- VIEW 3: HISTORY -->
+            <section id="view-history" class="hidden p-6 h-full flex-col space-y-4 fade-in">
+                <div class="flex items-center justify-between mb-2">
+                    <h3 class="text-lg font-bold text-gray-800">Riwayat 30 Hari</h3>
+                    <span class="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-1 rounded-full uppercase tracking-wider">Terbaru</span>
+                </div>
+                <!-- List Container -->
+                <div id="history-list" class="space-y-4 pb-20 overflow-y-auto pr-1">
+                    <div class="flex flex-col items-center justify-center py-10 text-gray-400">
+                        <i class="fa-solid fa-spinner fa-spin text-2xl mb-2"></i>
+                        <span class="text-xs">Memuat data...</span>
+                    </div>
+                </div>
+            </section>
+
+            <!-- VIEW 4: ANALYTICS DASHBOARD -->
+            <section id="view-analytics" class="hidden p-6 h-full flex-col space-y-6 fade-in">
+                <!-- Daily Summary -->
+                <div class="bg-white rounded-3xl p-6 shadow-sm border border-gray-100">
+                    <h3 class="text-lg font-bold text-gray-800 mb-4">Ringkasan Hari Ini</h3>
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="text-sm text-gray-500">Target Harian</span>
+                        <span class="text-sm font-bold text-gray-900"><span id="daily-cals">0</span> / <span id="target-cals">2000</span> kkal</span>
+                    </div>
+                    <div class="w-full bg-gray-100 h-4 rounded-full overflow-hidden mb-6">
+                        <div id="daily-progress" class="bg-gradient-to-r from-emerald-400 to-emerald-600 h-full rounded-full transition-all duration-1000" style="width: 0%"></div>
+                    </div>
+                    
+                    <div class="grid grid-cols-2 gap-4">
+                        <div class="bg-gray-50 rounded-xl p-4 text-center">
+                            <i class="fa-solid fa-fire-flame-curved text-orange-500 mb-2 text-xl"></i>
+                            <div class="text-2xl font-bold text-gray-800" id="burned-cals">0</div>
+                            <div class="text-[10px] text-gray-500 mt-1">Aktivitas + BMR</div>
+                        </div>
+                        <div class="bg-gray-50 rounded-xl p-4 text-center">
+                            <i class="fa-solid fa-utensils text-blue-500 mb-2 text-xl"></i>
+                            <div class="text-2xl font-bold text-gray-800" id="meals-count">0</div>
+                            <div class="text-[10px] text-gray-500 mt-1">Kali Makan</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Weekly Chart -->
+                <div class="bg-white rounded-3xl p-6 shadow-sm border border-gray-100">
+                    <h3 class="text-lg font-bold text-gray-800 mb-4">Tren Mingguan</h3>
+                    <div class="h-40 w-full">
+                        <canvas id="weeklyChart"></canvas>
+                    </div>
+                </div>
+            </section>
+
+            <!-- VIEW 5: PROFILE SETTINGS -->
+            <section id="view-profile" class="hidden p-6 h-full flex-col space-y-6 fade-in">
+                <div class="bg-white rounded-3xl p-6 shadow-lg border border-gray-100">
+                    <div class="flex items-center gap-3 mb-6">
+                        <div class="w-10 h-10 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-600">
+                            <i class="fa-solid fa-user"></i>
+                        </div>
+                        <h3 class="text-lg font-bold text-gray-800">Profil & Data Tubuh</h3>
+                    </div>
+
+                    <form id="profile-form" onsubmit="saveProfile(event)" class="space-y-4">
+                        
+                        <!-- NEW: Name Input -->
+                        <div class="input-group">
+                            <label>Nama Panggilan</label>
+                            <input type="text" id="input-name" placeholder="Contoh: Budi" required>
+                        </div>
+
+                        <!-- Goal Question -->
+                        <div class="input-group">
+                            <label>Apa tujuan berat badan Anda?</label>
+                            <div class="grid grid-cols-1 gap-2">
+                                <label class="checkbox-label justify-center">
+                                    <input type="radio" name="goal" value="lose" class="peer">
+                                    <span>Menurunkan Berat Badan</span>
+                                </label>
+                                <label class="checkbox-label justify-center">
+                                    <input type="radio" name="goal" value="maintain" checked class="peer">
+                                    <span>Menjaga Berat Badan</span>
+                                </label>
+                                <label class="checkbox-label justify-center">
+                                    <input type="radio" name="goal" value="unsure" class="peer">
+                                    <span>Masih Bingung</span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- Gender Selection -->
+                        <div class="input-group mt-4">
+                            <label>Jenis Kelamin</label>
+                            <div class="grid grid-cols-2 gap-3">
+                                <label class="cursor-pointer">
+                                    <input type="radio" name="gender" value="male" class="peer hidden" checked>
+                                    <div class="py-3 text-center rounded-xl border border-gray-200 peer-checked:bg-emerald-500 peer-checked:text-white peer-checked:border-emerald-500 transition-all font-medium text-sm">
+                                        <i class="fa-solid fa-person mr-1"></i> Laki-laki
+                                    </div>
+                                </label>
+                                <label class="cursor-pointer">
+                                    <input type="radio" name="gender" value="female" class="peer hidden">
+                                    <div class="py-3 text-center rounded-xl border border-gray-200 peer-checked:bg-emerald-500 peer-checked:text-white peer-checked:border-emerald-500 transition-all font-medium text-sm">
+                                        <i class="fa-solid fa-person-dress mr-1"></i> Perempuan
+                                    </div>
+                                </label>
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-4">
+                            <div class="input-group">
+                                <label>Usia (Tahun)</label>
+                                <input type="number" id="input-age" placeholder="25" min="10" max="100" required>
+                            </div>
+                            <div class="input-group">
+                                <label>Tinggi (cm)</label>
+                                <input type="number" id="input-height" placeholder="170" min="100" max="250" required>
+                            </div>
+                        </div>
+
+                        <!-- Weight & Target -->
+                        <div class="grid grid-cols-2 gap-4">
+                            <div class="input-group">
+                                <label>Berat Saat Ini (kg)</label>
+                                <input type="number" id="input-weight" placeholder="65" min="30" max="200" required>
+                            </div>
+                            <div class="input-group">
+                                <label>Tujuan Berat (kg)</label>
+                                <input type="number" id="input-target-weight" placeholder="60" min="30" max="200" required>
+                            </div>
+                        </div>
+
+                        <!-- Allergies -->
+                        <div class="input-group">
+                            <label>Apakah ada alergi makanan?</label>
+                            <div class="grid grid-cols-2 gap-2 text-xs">
+                                <label class="checkbox-label">
+                                    <input type="checkbox" name="allergy" value="gluten"> <span>Gluten</span>
+                                </label>
+                                <label class="checkbox-label">
+                                    <input type="checkbox" name="allergy" value="dairy"> <span>Susu</span>
+                                </label>
+                                <label class="checkbox-label">
+                                    <input type="checkbox" name="allergy" value="nuts"> <span>Kacang Pohon</span>
+                                </label>
+                                <label class="checkbox-label">
+                                    <input type="checkbox" name="allergy" value="eggs"> <span>Telur</span>
+                                </label>
+                                <label class="checkbox-label">
+                                    <input type="checkbox" name="allergy" value="soy"> <span>Kedelai</span>
+                                </label>
+                                <label class="checkbox-label">
+                                    <input type="checkbox" name="allergy" value="none" onchange="toggleAllergies(this)"> <span>Tidak Ada</span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <div class="pt-4">
+                            <button type="submit" class="w-full bg-gray-900 text-white py-3.5 rounded-xl font-bold shadow-lg active:scale-95 transition-transform flex items-center justify-center gap-2">
+                                <i class="fa-solid fa-floppy-disk"></i> Simpan Profil
+                            </button>
+                        </div>
+                        
+                        <p class="text-[10px] text-gray-400 text-center mt-2">
+                            Data ini digunakan untuk menghitung kebutuhan kalori harian Anda secara akurat.
+                        </p>
+                    </form>
+                </div>
+            </section>
+
+        </main>
+
+        <!-- MANUAL INPUT MODAL -->
+        <div id="manual-input-modal" class="absolute inset-0 bg-black/60 z-40 hidden flex-col justify-end fade-in backdrop-blur-sm">
+            <div class="bg-white rounded-t-3xl p-6 min-h-[50%] slide-up relative shadow-2xl">
+                <div class="flex justify-between items-center mb-6">
+                    <h3 class="text-lg font-bold text-gray-800">Koreksi Data</h3>
+                    <button onclick="closeManualInput()" class="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center text-gray-500 hover:bg-gray-200">
+                        <i class="fa-solid fa-times"></i>
+                    </button>
+                </div>
+                
+                <form onsubmit="saveManualInput(event)" class="space-y-4">
+                    <div class="input-group">
+                        <label>Nama Item (Ketik untuk cari)</label>
+                        <!-- Added list and oninput attributes for auto-fill -->
+                        <input type="text" id="edit-name" class="font-bold text-gray-800" required list="available-foods" oninput="autoFillNutrition(this.value)" autocomplete="off" placeholder="Ketik nama makanan...">
+                        <datalist id="available-foods"></datalist>
+                    </div>
+                     <!-- Category Selector for Edit -->
+                     <div class="input-group">
+                        <label>Kategori</label>
+                        <select id="edit-category" class="w-full">
+                            <option value="food">Makanan</option>
+                            <option value="drink">Minuman</option>
+                        </select>
+                    </div>
+                    <div class="grid grid-cols-2 gap-4">
+                         <div class="input-group">
+                            <label>Kalori (kkal)</label>
+                            <input type="number" id="edit-cals" required>
+                        </div>
+                         <div class="input-group">
+                            <label>Karbo (g)</label>
+                            <input type="number" id="edit-carbs" required>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-2 gap-4">
+                         <div class="input-group">
+                            <label>Protein (g)</label>
+                            <input type="number" id="edit-protein" required>
+                        </div>
+                         <div class="input-group">
+                            <label>Lemak (g)</label>
+                            <input type="number" id="edit-fat" required>
+                        </div>
+                    </div>
+                    <button type="submit" class="w-full bg-emerald-600 text-white py-3.5 rounded-xl font-bold shadow-lg mt-4 active:scale-95 transition-transform">
+                        Simpan Perubahan
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Monika AI Overlay -->
+        <div id="monika-modal" class="absolute inset-0 bg-black/60 z-50 hidden flex-col justify-end fade-in backdrop-blur-sm">
+            <div class="bg-white rounded-t-3xl p-8 min-h-[40%] slide-up relative">
+                <button onclick="toggleMonika()" class="absolute top-4 right-4 w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center text-gray-500">
+                    <i class="fa-solid fa-times"></i>
+                </button>
+                
+                <div class="flex flex-col items-center text-center mt-4">
+                    <div class="w-20 h-20 bg-gradient-to-tr from-emerald-400 to-teal-500 rounded-full flex items-center justify-center shadow-lg shadow-emerald-200 pulse-ring mb-6">
+                        <i class="fa-solid fa-microphone text-3xl text-white"></i>
+                    </div>
+                    
+                    <h3 class="text-xl font-bold text-gray-800 mb-2">Monika Mendengarkan...</h3>
+                    
+                    <div id="monika-status" class="h-8 flex items-center justify-center gap-1 mb-8">
+                        <div class="voice-wave hidden" id="voice-wave">
+                            <span></span><span></span><span></span><span></span><span></span>
+                        </div>
+                        <p id="monika-text" class="text-gray-500 text-sm">Tap mikrofon untuk mulai bicara</p>
+                    </div>
+
+                    <p class="text-xs text-gray-400 mb-6 border px-3 py-1 rounded-full">Contoh: "Berapa kalori es teh?"</p>
+
+                    <button onmousedown="startListening()" onmouseup="stopListening()" ontouchstart="startListening()" ontouchend="stopListening()" class="w-full bg-gray-900 text-white py-4 rounded-xl font-bold shadow-lg active:scale-95 transition-transform select-none">
+                        Tahan untuk Bicara
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Bottom Navigation (Updated 5 Columns) -->
+        <nav class="bg-white border-t border-gray-100 px-2 py-3 grid grid-cols-5 gap-0.5 z-30 pb-safe">
+            <button onclick="switchView('scan')" class="nav-btn flex flex-col items-center gap-1 text-emerald-600 transition-colors" id="nav-scan">
+                <i class="fa-solid fa-camera text-lg mb-0.5"></i>
+                <span class="text-[9px] font-medium">Scan</span>
+            </button>
+
+            <!-- Activity Button -->
+            <button onclick="switchView('activity')" class="nav-btn flex flex-col items-center gap-1 text-gray-400 hover:text-gray-600 transition-colors" id="nav-activity">
+                <i class="fa-solid fa-person-running text-lg mb-0.5"></i>
+                <span class="text-[9px] font-medium">Aktivitas</span>
+            </button>
+            
+            <button onclick="switchView('history')" class="nav-btn flex flex-col items-center gap-1 text-gray-400 hover:text-gray-600 transition-colors" id="nav-history">
+                <i class="fa-solid fa-clock-rotate-left text-lg mb-0.5"></i>
+                <span class="text-[9px] font-medium">Riwayat</span>
+            </button>
+
+            <button onclick="switchView('analytics')" class="nav-btn flex flex-col items-center gap-1 text-gray-400 hover:text-gray-600 transition-colors" id="nav-analytics">
+                <i class="fa-solid fa-chart-pie text-lg mb-0.5"></i>
+                <span class="text-[9px] font-medium">Analitik</span>
+            </button>
+
+            <button onclick="switchView('profile')" class="nav-btn flex flex-col items-center gap-1 text-gray-400 hover:text-gray-600 transition-colors" id="nav-profile">
+                <i class="fa-solid fa-user-gear text-lg mb-0.5"></i>
+                <span class="text-[9px] font-medium">Profil</span>
+            </button>
+        </nav>
+
+    </div>
+
+    <script>
+        // === DATABASE & STATE ===
+        // Expanded Database with emojis for visual representation
+        const mockFoodDatabase = [
+            // MAKANAN BERAT & LAUK
+            { type: 'food', emoji: '🍛', keywords: ['nasi goreng', 'fried rice'], name: "Nasi Goreng Spesial", cals: 380, carbs: 48, prot: 14, fat: 16, tip: "Menu favorit! Imbangi dengan acar atau timun." },
+            { type: 'food', emoji: '🍖', keywords: ['rendang', 'daging'], name: "Rendang Sapi (100g)", cals: 195, carbs: 5, prot: 22, fat: 11, tip: "Kaya rempah dan protein. Kuahnya mengandung santan, batasi jika perlu." },
+            { type: 'food', emoji: '🍢', keywords: ['sate', 'satay'], name: "Sate Ayam (5 Tusuk)", cals: 220, carbs: 8, prot: 28, fat: 10, tip: "Sumber protein bagus. Bumbu kacang menambah kalori signifikan." },
+            { type: 'food', emoji: '🥗', keywords: ['gado', 'gado-gado'], name: "Gado-Gado", cals: 320, carbs: 35, prot: 16, fat: 14, tip: "Pilihan sehat dengan banyak sayur. Kerupuk menambah kalori ekstra." },
+            { type: 'food', emoji: '🍲', keywords: ['soto', 'soto ayam'], name: "Soto Ayam", cals: 312, carbs: 20, prot: 22, fat: 15, tip: "Kuah bening lebih ringan daripada yang bersantan." },
+            { type: 'food', emoji: '🥣', keywords: ['bakso', 'meatball'], name: "Bakso Sapi Kuah", cals: 325, carbs: 30, prot: 20, fat: 12, tip: "Nikmat saat hujan. Batasi saus dan kecap manis." },
+            { type: 'food', emoji: '🍜', keywords: ['mie', 'mie ayam', 'noodle'], name: "Mie Ayam", cals: 420, carbs: 55, prot: 15, fat: 14, tip: "Karbohidrat cukup tinggi. Minta ekstra sawi agar lebih sehat." },
+            { type: 'food', emoji: '🍚', keywords: ['bubur', 'porridge'], name: "Bubur Ayam", cals: 250, carbs: 40, prot: 12, fat: 8, tip: "Sarapan klasik. Jangan terlalu banyak kerupuknya ya." },
+            { type: 'food', emoji: '🍗', keywords: ['ayam goreng', 'fried chicken'], name: "Ayam Goreng", cals: 260, carbs: 8, prot: 24, fat: 18, tip: "Bagian dada lebih rendah lemak dibanding paha." },
+            
+            // MAKANAN RINGAN / SNACK
+            { type: 'food', emoji: '🥞', keywords: ['martabak', 'terang bulan'], name: "Martabak Manis (1 Potong)", cals: 270, carbs: 35, prot: 4, fat: 14, tip: "Sangat tinggi gula dan lemak. Nikmati secukupnya saja." },
+            { type: 'food', emoji: '🍌', keywords: ['pisang', 'banana'], name: "Pisang Goreng (1 Pcs)", cals: 140, carbs: 22, prot: 1, fat: 6, tip: "Camilan sore yang enak. Minyaknya perlu diperhatikan." },
+            { type: 'food', emoji: '🍘', keywords: ['tahu', 'tofu'], name: "Tahu Goreng (1 Pcs)", cals: 80, carbs: 4, prot: 6, fat: 5, tip: "Protein nabati yang murah dan sehat." },
+            { type: 'food', emoji: '🥜', keywords: ['tempe'], name: "Tempe Goreng (1 Pcs)", cals: 100, carbs: 8, prot: 7, fat: 6, tip: "Superfood asli Indonesia! Kaya serat dan protein." },
+            { type: 'food', emoji: '🍞', keywords: ['roti', 'bread'], name: "Roti Tawar (1 Lembar)", cals: 80, carbs: 15, prot: 3, fat: 1, tip: "Pilih roti gandum untuk serat lebih banyak." },
+            { type: 'food', emoji: '🥚', keywords: ['telur', 'egg'], name: "Telur Rebus", cals: 75, carbs: 1, prot: 6, fat: 5, tip: "Protein paling murni dan mudah diserap tubuh." },
+
+            // MINUMAN
+            { type: 'drink', emoji: '☕', keywords: ['kopi', 'coffee', 'latte'], name: "Es Kopi Susu Gula Aren", cals: 180, carbs: 25, prot: 3, fat: 8, tip: "Enak tapi tinggi gula. Bisa minta 'less sugar' lain kali." },
+            { type: 'drink', emoji: '🥤', keywords: ['teh', 'tea', 'es teh'], name: "Es Teh Manis", cals: 90, carbs: 22, prot: 0, fat: 0, tip: "Menyegarkan! Tapi gula cair sangat cepat diserap tubuh." },
+            { type: 'drink', emoji: '🍊', keywords: ['jus', 'juice', 'jeruk'], name: "Jus Jeruk Murni", cals: 110, carbs: 26, prot: 2, fat: 0, tip: "Kaya Vitamin C. Lebih baik daripada minuman rasa jeruk." },
+            { type: 'drink', emoji: '🥑', keywords: ['alpukat', 'avocado'], name: "Jus Alpukat", cals: 250, carbs: 20, prot: 4, fat: 18, tip: "Lemak baik untuk jantung. Susu kental manis menambah kalori." },
+            { type: 'drink', emoji: '🥣', keywords: ['cendol', 'dawet'], name: "Es Cendol / Dawet", cals: 200, carbs: 30, prot: 2, fat: 9, tip: "Santan dan gula merahnya cukup padat kalori." },
+            { type: 'drink', emoji: '🧋', keywords: ['boba', 'bubble'], name: "Boba Milk Tea", cals: 350, carbs: 50, prot: 2, fat: 12, tip: "Kalorinya setara makan besar! Nikmati sesekali saja." },
+            { type: 'drink', emoji: '💧', keywords: ['air', 'water', 'mineral'], name: "Air Mineral", cals: 0, carbs: 0, prot: 0, fat: 0, tip: "Hidrasi terbaik. Targetkan 8 gelas sehari!" },
+            { type: 'drink', emoji: '🥥', keywords: ['kelapa', 'coconut'], name: "Es Kelapa Muda", cals: 80, carbs: 10, prot: 1, fat: 3, tip: "Elektrolit alami, sangat bagus setelah beraktivitas." }
+        ];
+
+        let state = {
+            currentCals: 850,
+            burnedCals: 0, 
+            mealsToday: 2,
+            lastScan: null,
+            currentImage: null, // Store scanned image data URL
+            view: 'scan',
+            activities: [], 
+            profile: {
+                name: 'Sobat Sehat',
+                gender: 'male',
+                age: 25,
+                height: 170,
+                weight: 65,
+                targetWeight: 60,
+                goal: 'maintain',
+                allergies: [],
+                dailyTarget: 2000,
+                bmr: 1600 
+            }
+        };
+
+        // Generate Mock History Data
+        const generateMockHistory = () => {
+            const history = [];
+            const foods = mockFoodDatabase;
+            const today = new Date();
+            
+            for (let i = 0; i < 30; i++) {
+                if (Math.random() > 0.2) { 
+                    const date = new Date(today);
+                    date.setDate(today.getDate() - i);
+                    const mealsCount = Math.floor(Math.random() * 3) + 1;
+                    
+                    for (let m = 0; m < mealsCount; m++) {
+                        const food = foods[Math.floor(Math.random() * foods.length)];
+                        const hour = Math.floor(Math.random() * 14) + 7;
+                        const minute = Math.floor(Math.random() * 60).toString().padStart(2, '0');
+                        history.push({
+                            date: date.toISOString().split('T')[0],
+                            name: food.name,
+                            cals: food.cals,
+                            type: food.type,
+                            emoji: food.emoji,
+                            image: null, // Mock data has no real images
+                            time: `${hour}:${minute}`
+                        });
+                    }
+                }
+            }
+            return history.sort((a, b) => new Date(b.date + 'T' + b.time) - new Date(a.date + 'T' + a.time));
+        };
+
+        const historyData = generateMockHistory();
+
+        // === DOM ELEMENTS ===
+        const views = {
+            scan: document.getElementById('view-scan'),
+            history: document.getElementById('view-history'),
+            analytics: document.getElementById('view-analytics'),
+            profile: document.getElementById('view-profile'),
+            activity: document.getElementById('view-activity')
+        };
+        const navs = {
+            scan: document.getElementById('nav-scan'),
+            history: document.getElementById('nav-history'),
+            analytics: document.getElementById('nav-analytics'),
+            profile: document.getElementById('nav-profile'),
+            activity: document.getElementById('nav-activity')
+        };
+        const monikaModal = document.getElementById('monika-modal');
+        const manualInputModal = document.getElementById('manual-input-modal');
+        const voiceWave = document.getElementById('voice-wave');
+        const monikaText = document.getElementById('monika-text');
+
+        // === CHART.JS ===
+        let weeklyChartInstance = null;
+        function initChart() {
+            const ctx = document.getElementById('weeklyChart').getContext('2d');
+            if(weeklyChartInstance) weeklyChartInstance.destroy();
+            
+            weeklyChartInstance = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: ['Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab', 'Min'],
+                    datasets: [{
+                        label: 'Kalori',
+                        data: [1800, 2100, 1950, 2200, 1750, 2300, 850],
+                        backgroundColor: '#10B981',
+                        borderRadius: 4,
+                        barThickness: 12
+                    }]
+                },
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: { y: { beginAtZero: true, grid: { display: false } }, x: { grid: { display: false } } }
+                }
+            });
+        }
+
+        // === CORE FUNCTIONS ===
+        function switchView(viewName) {
+            Object.values(views).forEach(el => el.classList.add('hidden'));
+            Object.values(views).forEach(el => el.classList.remove('flex'));
+            
+            views[viewName].classList.remove('hidden');
+            views[viewName].classList.add('flex');
+
+            document.querySelectorAll('.nav-btn').forEach(btn => {
+                btn.classList.remove('text-emerald-600', 'text-orange-500'); 
+                btn.classList.add('text-gray-400');
+            });
+            navs[viewName].classList.remove('text-gray-400');
+            
+            if(viewName === 'activity') {
+                navs[viewName].classList.add('text-orange-500');
+            } else {
+                navs[viewName].classList.add('text-emerald-600');
+            }
+
+            if (viewName === 'analytics') {
+                updateAnalyticsUI();
+                initChart();
+            }
+            if (viewName === 'profile') {
+                const nameInput = document.getElementById('input-name');
+                if (state.profile.name !== 'Sobat Sehat') {
+                    nameInput.value = state.profile.name;
+                } else {
+                    nameInput.value = '';
+                }
+                document.getElementById('input-age').value = state.profile.age;
+                document.getElementById('input-height').value = state.profile.height;
+                document.getElementById('input-weight').value = state.profile.weight;
+                document.getElementById('input-target-weight').value = state.profile.targetWeight;
+            }
+            if (viewName === 'history') renderHistory();
+            if (viewName === 'activity') calculateBurnEstimate();
+        }
+
+        // === AUTO-FILL LOGIC (NEW) ===
+        function populateDatalist() {
+            const datalist = document.getElementById('available-foods');
+            if (!datalist) return;
+            datalist.innerHTML = ''; 
+            mockFoodDatabase.forEach(food => {
+                const option = document.createElement('option');
+                option.value = food.name;
+                datalist.appendChild(option);
+            });
+        }
+
+        function autoFillNutrition(name) {
+            const match = mockFoodDatabase.find(f => f.name.toLowerCase() === name.toLowerCase());
+            
+            if (match) {
+                // Update Category
+                const catSelect = document.getElementById('edit-category');
+                if(catSelect) catSelect.value = match.type;
+
+                // Update Nutrition
+                document.getElementById('edit-cals').value = match.cals;
+                document.getElementById('edit-carbs').value = match.carbs;
+                document.getElementById('edit-protein').value = match.prot;
+                document.getElementById('edit-fat').value = match.fat;
+                
+                // Feedback animation on the button
+                const btn = document.querySelector('#manual-input-modal button[type="submit"]');
+                const originalText = "Simpan Perubahan";
+                btn.innerText = "Data Ditemukan! Simpan?";
+                btn.classList.add('bg-orange-500', 'scale-105');
+                btn.classList.remove('bg-emerald-600');
+                
+                setTimeout(() => {
+                    btn.innerText = originalText;
+                    btn.classList.remove('bg-orange-500', 'scale-105');
+                    btn.classList.add('bg-emerald-600');
+                }, 1500);
+            }
+        }
+
+        // === ACTIVITY LOGIC ===
+        function calculateBurnEstimate() {
+            const select = document.getElementById('activity-type');
+            const duration = document.getElementById('activity-duration').value;
+            const met = parseFloat(select.options[select.selectedIndex].getAttribute('data-met'));
+            const weight = state.profile.weight;
+            const burnt = Math.round(met * weight * (duration / 60));
+            document.getElementById('activity-burn-est').innerText = burnt;
+        }
+
+        function saveActivity(event) {
+            event.preventDefault();
+            const select = document.getElementById('activity-type');
+            const name = select.options[select.selectedIndex].text.split('(')[0].trim();
+            const cals = parseInt(document.getElementById('activity-burn-est').innerText);
+            
+            state.burnedCals += cals;
+            state.activities.push({ name, cals, time: new Date().toLocaleTimeString('id-ID', {hour:'2-digit', minute:'2-digit'}) });
+            
+            renderActivityList();
+            speak(`Aktivitas ${name} berhasil dicatat. Kamu membakar sekitar ${cals} kalori.`);
+        }
+
+        function renderActivityList() {
+            const list = document.getElementById('activity-list');
+            const emptyMsg = document.getElementById('empty-activity-msg');
+            
+            if (state.activities.length > 0) {
+                emptyMsg.classList.add('hidden');
+                list.innerHTML = '';
+                list.appendChild(emptyMsg);
+                
+                state.activities.slice().reverse().forEach(act => {
+                    const el = document.createElement('div');
+                    el.className = 'bg-orange-50 p-3 rounded-xl flex justify-between items-center border border-orange-100';
+                    el.innerHTML = `
+                        <div>
+                            <div class="font-bold text-gray-800 text-sm">${act.name}</div>
+                            <div class="text-[10px] text-gray-400">${act.time}</div>
+                        </div>
+                        <div class="text-orange-500 font-bold text-sm">-${act.cals} kkal</div>
+                    `;
+                    list.appendChild(el);
+                });
+            }
+        }
+
+        // === HISTORY LOGIC ===
+        function renderHistory() {
+            const listContainer = document.getElementById('history-list');
+            listContainer.innerHTML = '';
+            let lastDate = '';
+            
+            historyData.forEach(item => {
+                if (item.date !== lastDate) {
+                    const dateHeader = document.createElement('div');
+                    dateHeader.className = 'text-[10px] font-bold text-gray-400 mt-4 mb-2 uppercase tracking-wider sticky top-0 bg-[#F3F4F6] py-1 z-10';
+                    const dateObj = new Date(item.date);
+                    const todayStr = new Date().toISOString().split('T')[0];
+                    if (item.date === todayStr) dateHeader.innerText = "Hari Ini";
+                    else dateHeader.innerText = dateObj.toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long' });
+                    listContainer.appendChild(dateHeader);
+                    lastDate = item.date;
+                }
+                
+                // Visual Logic: Prefer Image -> Emoji -> Icon
+                let iconHtml = '';
+                
+                if (item.image) {
+                    // Show scanned photo
+                    iconHtml = `<img src="${item.image}" class="w-10 h-10 rounded-full object-cover border border-gray-200 shrink-0 shadow-sm" alt="Foto Scan">`;
+                } else {
+                    // Fallback to emoji/icon logic for mock data
+                    let displayEmoji = item.emoji;
+                    if(!displayEmoji) {
+                        displayEmoji = item.type === 'drink' ? '🥤' : '🍽️';
+                    }
+                    let bgClass = item.type === 'drink' ? 'bg-blue-50 text-blue-500' : 'bg-emerald-50 text-emerald-500';
+                    iconHtml = `<div class="w-10 h-10 rounded-full ${bgClass} flex items-center justify-center text-xl shrink-0">${displayEmoji}</div>`;
+                }
+
+                const card = document.createElement('div');
+                card.className = 'bg-white p-3.5 rounded-2xl shadow-sm border border-gray-100 flex justify-between items-center transition-transform active:scale-[0.98]';
+                card.innerHTML = `
+                    <div class="flex items-center gap-3">
+                        ${iconHtml}
+                        <div>
+                            <h4 class="font-bold text-gray-800 text-sm leading-tight">${item.name}</h4>
+                            <p class="text-[10px] text-gray-400 mt-0.5"><i class="fa-regular fa-clock mr-1"></i>${item.time}</p>
+                        </div>
+                    </div>
+                    <div class="text-right">
+                        <span class="block font-bold text-emerald-600 text-sm">+${item.cals}</span>
+                        <span class="text-[10px] text-gray-400 font-medium">kkal</span>
+                    </div>
+                `;
+                listContainer.appendChild(card);
+            });
+        }
+
+        // === PROFILE LOGIC ===
+        function toggleAllergies(source) {
+            const checkboxes = document.querySelectorAll('input[name="allergy"]');
+            if (source.checked) {
+                checkboxes.forEach(cb => {
+                    if (cb !== source) cb.checked = false;
+                });
+            }
+        }
+
+        function saveProfile(event) {
+            event.preventDefault();
+            
+            // Get Basic Info
+            const name = document.getElementById('input-name').value;
+            const gender = document.querySelector('input[name="gender"]:checked').value;
+            const goal = document.querySelector('input[name="goal"]:checked').value;
+            const age = parseInt(document.getElementById('input-age').value);
+            const height = parseInt(document.getElementById('input-height').value);
+            const weight = parseInt(document.getElementById('input-weight').value);
+            const targetWeight = parseInt(document.getElementById('input-target-weight').value);
+            
+            // Get Allergies
+            const allergies = [];
+            document.querySelectorAll('input[name="allergy"]:checked').forEach(cb => {
+                allergies.push(cb.value);
+            });
+
+            // 1. Calculate BMR (Mifflin-St Jeor)
+            let bmr = 0;
+            if (gender === 'male') {
+                bmr = (10 * weight) + (6.25 * height) - (5 * age) + 5;
+            } else {
+                bmr = (10 * weight) + (6.25 * height) - (5 * age) - 161;
+            }
+
+            // 2. Calculate TDEE (Sedentary baseline 1.2)
+            const tdee = Math.round(bmr * 1.2);
+
+            // 3. Adjust Target based on Goal
+            let finalTarget = tdee;
+            if (goal === 'lose') {
+                finalTarget = tdee - 500; // Deficit for weight loss
+            } 
+            // 'maintain' and 'unsure' default to TDEE
+
+            // Save to state
+            state.profile = { 
+                name, gender, age, height, weight, targetWeight, 
+                goal, allergies, 
+                dailyTarget: finalTarget, 
+                bmr: bmr 
+            };
+
+            // Update UI Greeting
+            document.getElementById('user-greeting').innerText = name;
+
+            const btn = document.querySelector('#profile-form button');
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '<i class="fa-solid fa-check"></i> Tersimpan!';
+            btn.classList.remove('bg-gray-900'); btn.classList.add('bg-emerald-600');
+            
+            let feedbackText = `Profil ${name} berhasil disimpan. Target harianmu ${finalTarget} kalori.`;
+            if (goal === 'lose') feedbackText += " Semangat dietnya!";
+            
+            speak(feedbackText);
+
+            setTimeout(() => {
+                btn.innerHTML = originalText;
+                btn.classList.add('bg-gray-900'); btn.classList.remove('bg-emerald-600');
+                switchView('analytics');
+            }, 1500);
+        }
+
+        // === SCANNING & MANUAL INPUT ===
+        function handleImageUpload(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                document.getElementById('preview-image').src = e.target.result;
+                state.currentImage = e.target.result; // Store scanned image for history
+                startAnalysis(file.name.toLowerCase());
+            }
+            reader.readAsDataURL(file);
+        }
+
+        function startAnalysis(filename) {
+            document.getElementById('upload-state').classList.add('hidden');
+            document.getElementById('analysis-state').classList.remove('hidden');
+            document.getElementById('analysis-state').classList.add('flex');
+            document.getElementById('scanner-overlay').classList.remove('hidden');
+            document.getElementById('scanner-overlay').classList.add('flex');
+            document.getElementById('result-card').classList.add('hidden');
+            document.getElementById('welcome-msg').classList.add('hidden');
+
+            const statusText = document.getElementById('scan-status-text');
+            const steps = ["Menganalisis gambar...", "Mendeteksi objek...", "Mengidentifikasi kategori...", "Menghitung nutrisi..."];
+            let stepIndex = 0;
+            
+            const interval = setInterval(() => {
+                statusText.innerText = steps[stepIndex];
+                stepIndex = (stepIndex + 1) % steps.length;
+            }, 600);
+
+            setTimeout(() => {
+                clearInterval(interval);
+                document.getElementById('scanner-overlay').classList.add('hidden');
+                document.getElementById('scanner-overlay').classList.remove('flex');
+                
+                // Smart Match or Random Fallback with Category awareness
+                const matched = mockFoodDatabase.find(f => f.keywords.some(k => filename.includes(k))) || mockFoodDatabase[Math.floor(Math.random() * mockFoodDatabase.length)];
+                
+                // Clone match data
+                let resultData = JSON.parse(JSON.stringify(matched));
+                
+                // --- PROFILE-AWARE TIP LOGIC ---
+                // If user wants to lose weight and food is high calorie
+                if (state.profile.goal === 'lose' && resultData.cals > 400) {
+                    resultData.tip = `Halo ${state.profile.name || 'Sobat'}, makanan ini kalori-nya agak tinggi (${resultData.cals} kkal). Karena targetmu menurunkan berat badan, coba kurangi porsinya sedikit ya.`;
+                }
+                
+                state.lastScan = resultData;
+                renderScanResult(state.lastScan);
+                
+                const typeText = matched.type === 'drink' ? 'minuman' : 'makanan';
+                speak(`Selesai. Saya mendeteksi ${matched.name}. ${resultData.tip}`);
+            }, 2500);
+        }
+
+        function renderScanResult(data) {
+            document.getElementById('food-name').innerText = data.name;
+            document.getElementById('food-calories').innerText = data.cals;
+            document.getElementById('food-carbs').innerText = data.carbs + 'g';
+            document.getElementById('food-protein').innerText = data.prot + 'g';
+            document.getElementById('food-fat').innerText = data.fat + 'g';
+            document.getElementById('food-tip').innerText = `"${data.tip}"`;
+            
+            // Render Emoji (Hide if we have a scanned image, handled by CSS/Logic if needed, but here simple fallback)
+            const emojiEl = document.getElementById('food-emoji');
+            // If scanning, we have a photo preview above, so emoji isn't strictly needed in the card header,
+            // but we keep it consistent or hide it.
+            if(emojiEl) {
+                emojiEl.innerText = data.emoji || (data.type === 'drink' ? '🥤' : '🍽️');
+                emojiEl.classList.remove('hidden');
+            }
+
+            // Enhanced Category Badge Logic
+            const catBadge = document.getElementById('food-category');
+            
+            if (data.type === 'drink') {
+                catBadge.innerHTML = '<i class="fa-solid fa-glass-water"></i> Minuman';
+                catBadge.className = "inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-blue-100 text-blue-600 border border-blue-200";
+            } else {
+                catBadge.innerHTML = '<i class="fa-solid fa-utensils"></i> Makanan';
+                catBadge.className = "inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-emerald-100 text-emerald-600 border border-emerald-200";
+            }
+
+            setTimeout(() => {
+                document.getElementById('bar-carbs').style.width = Math.min((data.carbs/80)*100, 100) + '%';
+                document.getElementById('bar-protein').style.width = Math.min((data.prot/50)*100, 100) + '%';
+                document.getElementById('bar-fat').style.width = Math.min((data.fat/40)*100, 100) + '%';
+            }, 100);
+            
+            document.getElementById('result-card').classList.remove('hidden');
+            document.getElementById('result-card').classList.add('fade-in');
+        }
+
+        function showManualInput() {
+            if (!state.lastScan) return;
+            
+            // Populate datalist if empty
+            const datalist = document.getElementById('available-foods');
+            if(datalist && datalist.children.length === 0) {
+                populateDatalist();
+            }
+
+            document.getElementById('edit-name').value = state.lastScan.name;
+            document.getElementById('edit-category').value = state.lastScan.type || 'food';
+            document.getElementById('edit-cals').value = state.lastScan.cals;
+            document.getElementById('edit-carbs').value = state.lastScan.carbs;
+            document.getElementById('edit-protein').value = state.lastScan.prot;
+            document.getElementById('edit-fat').value = state.lastScan.fat;
+            manualInputModal.classList.remove('hidden'); manualInputModal.classList.add('flex');
+        }
+
+        function closeManualInput() {
+            manualInputModal.classList.add('hidden'); manualInputModal.classList.remove('flex');
+        }
+
+        function saveManualInput(event) {
+            event.preventDefault();
+            state.lastScan.name = document.getElementById('edit-name').value;
+            state.lastScan.type = document.getElementById('edit-category').value;
+            state.lastScan.cals = parseInt(document.getElementById('edit-cals').value);
+            state.lastScan.carbs = parseInt(document.getElementById('edit-carbs').value);
+            state.lastScan.prot = parseInt(document.getElementById('edit-protein').value);
+            state.lastScan.fat = parseInt(document.getElementById('edit-fat').value);
+            
+            // Try to recover emoji AND Tip based on new name or keep old one
+            const match = mockFoodDatabase.find(f => f.name.toLowerCase() === state.lastScan.name.toLowerCase());
+            if(match) {
+                state.lastScan.emoji = match.emoji;
+                state.lastScan.tip = match.tip; // Update tip too for consistency
+            } else {
+                // If custom name, set default emoji based on category
+                state.lastScan.emoji = state.lastScan.type === 'drink' ? '🥤' : '🍽️';
+            }
+
+            renderScanResult(state.lastScan);
+            closeManualInput();
+        }
+
+        function saveAndReset() {
+            if (state.lastScan) {
+                state.currentCals += state.lastScan.cals;
+                state.mealsToday++;
+                const now = new Date();
+                
+                // Add to history with the SCANNED IMAGE
+                historyData.unshift({
+                    date: now.toISOString().split('T')[0],
+                    name: state.lastScan.name,
+                    cals: state.lastScan.cals,
+                    type: state.lastScan.type, 
+                    emoji: state.lastScan.emoji,
+                    image: state.currentImage, // Use the real photo here
+                    time: `${now.getHours()}:${now.getMinutes().toString().padStart(2, '0')}`
+                });
+
+                // Clear temp image
+                state.currentImage = null;
+
+                if(weeklyChartInstance) {
+                    weeklyChartInstance.data.datasets[0].data[6] = state.currentCals;
+                    weeklyChartInstance.update();
+                }
+            }
+            resetApp();
+        }
+
+        function resetApp() {
+            document.getElementById('file-input').value = '';
+            document.getElementById('analysis-state').classList.add('hidden');
+            document.getElementById('analysis-state').classList.remove('flex');
+            document.getElementById('upload-state').classList.remove('hidden');
+            document.getElementById('welcome-msg').classList.remove('hidden');
+            document.getElementById('bar-carbs').style.width = '0%';
+            document.getElementById('bar-protein').style.width = '0%';
+            document.getElementById('bar-fat').style.width = '0%';
+        }
+
+        function updateAnalyticsUI() {
+            const target = state.profile.dailyTarget || 2000;
+            const pct = Math.min((state.currentCals / target) * 100, 100);
+            
+            document.getElementById('daily-cals').innerText = state.currentCals;
+            document.getElementById('target-cals').innerText = target;
+            document.getElementById('daily-progress').style.width = pct + '%';
+            
+            const bmr = state.profile.bmr || 1600;
+            const totalBurn = Math.round(bmr + state.burnedCals);
+
+            document.getElementById('burned-cals').innerText = totalBurn; 
+            document.getElementById('meals-count').innerText = state.mealsToday;
+        }
+
+        // === MONIKA VOICE ===
+        function toggleMonika() {
+            if (monikaModal.classList.contains('hidden')) {
+                monikaModal.classList.remove('hidden'); monikaModal.classList.add('flex');
+                speak("Halo! Ada yang bisa Monika bantu?");
+            } else {
+                monikaModal.classList.add('hidden'); monikaModal.classList.remove('flex');
+                window.speechSynthesis.cancel();
+            }
+        }
+
+        function startListening() {
+            voiceWave.classList.remove('hidden');
+            monikaText.innerText = "Mendengarkan...";
+        }
+
+        function stopListening() {
+            voiceWave.classList.add('hidden');
+            monikaText.innerText = "Memproses...";
+            setTimeout(() => {
+                const responses = [
+                    "Berdasarkan profilmu, kamu butuh lebih banyak protein.",
+                    "Jangan lupa minum air yang cukup.",
+                    "Olahraga itu penting! Coba fitur Aktivitas di menu bawah.",
+                    "Kamu sudah membakar cukup banyak kalori hari ini."
+                ];
+                const r = responses[Math.floor(Math.random() * responses.length)];
+                monikaText.innerText = r;
+                speak(r);
+            }, 1000);
+        }
+
+        function playAudioTip() { speak(document.getElementById('food-tip').innerText); }
+
+        function speak(text) {
+            window.speechSynthesis.cancel();
+            const u = new SpeechSynthesisUtterance(text);
+            u.lang = 'id-ID'; u.rate = 1.1; u.pitch = 1.1;
+            const voices = window.speechSynthesis.getVoices();
+            const v = voices.find(v => v.lang.includes('id') || v.lang.includes('ID'));
+            if (v) u.voice = v;
+            window.speechSynthesis.speak(u);
+        }
+    </script>
+</body>
+</html>
